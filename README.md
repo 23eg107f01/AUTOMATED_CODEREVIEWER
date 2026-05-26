@@ -1,4 +1,6 @@
-# Automated Code Reviewer
+# AUTOMATED
+
+Repository: https://github.com/23eg107f01/AUTOMATED_CODEREVIEWER
 
 A full-stack code review demo with a React + Vite frontend, an Express backend, and Groq-powered AI review generation.
 
@@ -25,6 +27,18 @@ npm run dev
 ```
 
 The frontend runs on Vite and proxies `/api` requests to the backend.
+
+## Deployment
+
+For a frontend-only Vercel deployment, use the `client` folder as the project root.
+
+Set these environment variables as needed:
+
+- `VITE_REVIEW_API_BASE_URL` - the public URL of the backend that serves `POST /api/review`
+- `CLIENT_ORIGIN` - the public origin allowed to call the backend from browsers
+- `CORS_ORIGINS` - optional comma-separated list of additional allowed origins
+
+If you deploy the backend separately, make sure its CORS allowlist includes your Vercel domain.
 
 ## Backend API
 
@@ -58,4 +72,4 @@ Response fields:
 
 ## Production note
 
-The backend CORS policy is locked to localhost for development. Update the allowlist in `server/index.js` before deploying.
+The backend CORS policy is now environment-driven. Set `CLIENT_ORIGIN` or `CORS_ORIGINS` before deploying the backend.

@@ -11,11 +11,14 @@ dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 
 const reviewRouter = Router();
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const langSmithClient = new Client({
-  apiKey: process.env.LANGSMITH_API_KEY,
-  apiUrl: process.env.LANGSMITH_ENDPOINT,
-  tracingMode: "langsmith"
-});
+const langSmithClient =
+  process.env.LANGSMITH_API_KEY && process.env.LANGSMITH_PROJECT
+    ? new Client({
+        apiKey: process.env.LANGSMITH_API_KEY,
+        apiUrl: process.env.LANGSMITH_ENDPOINT,
+        tracingMode: "langsmith"
+      })
+    : null;
 
 const supportedLanguages = new Set([
   "JavaScript",
@@ -67,48 +70,49 @@ function isReviewShape(review) {
   );
 }
 
-const generateReview = traceable(
-  async ({ code, language, focus }) => {
-    try {
-      const completion = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Language: ${language}\nFocus: ${focus}\n\nCode:\n${code}` }
-        ],
-        temperature: 0.3,
-        max_tokens: 2048,
-        response_format: { type: "json_object" }
-      });
+async function generateReviewBase({ code, language, focus }) {
+  try {
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: `Language: ${language}\nFocus: ${focus}\n\nCode:\n${code}` }
+      ],
+      temperature: 0.3,
+      max_tokens: 2048,
+      response_format: { type: "json_object" }
+    });
 
-      const rawContent = completion?.choices?.[0]?.message?.content;
-      const parsed = JSON.parse(rawContent ?? "{}");
+    const rawContent = completion?.choices?.[0]?.message?.content;
+    const parsed = JSON.parse(rawContent ?? "{}");
 
-      if (!isReviewShape(parsed)) {
-        throw new SyntaxError("Review parsing failed. Please try again.");
-      }
-
-      return normalizeReview(parsed);
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        throw error;
-      }
-
-      throw new Error(error instanceof Error ? error.message : "Unknown error");
+    if (!isReviewShape(parsed)) {
+      throw new SyntaxError("Review parsing failed. Please try again.");
     }
-  },
-  {
-    name: "groq-code-review",
-    run_type: "chain",
-    client: langSmithClient,
-    project_name: process.env.LANGSMITH_PROJECT,
-    processInputs: ({ code, language, focus }) => ({
-      codeLength: code.length,
-      language,
-      focus
-    })
+
+    return normalizeReview(parsed);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw error;
+    }
+
+    throw new Error(error instanceof Error ? error.message : "Unknown error");
   }
-);
+}
+
+const generateReview = langSmithClient
+  ? traceable(generateReviewBase, {
+      name: "groq-code-review",
+      run_type: "chain",
+      client: langSmithClient,
+      project_name: process.env.LANGSMITH_PROJECT,
+      processInputs: ({ code, language, focus }) => ({
+        codeLength: code.length,
+        language,
+        focus
+      })
+    })
+  : generateReviewBase;
 
 reviewRouter.post("/", reviewRateLimit, async (req, res) => {
   const code = typeof req.body?.code === "string" ? req.body.code : "";

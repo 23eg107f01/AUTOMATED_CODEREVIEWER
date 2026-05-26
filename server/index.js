@@ -12,19 +12,17 @@ if (!process.env.GROQ_API_KEY) {
   throw new Error("GROQ_API_KEY is not set in .env");
 }
 
-if (!process.env.LANGSMITH_API_KEY) {
-  throw new Error("LANGSMITH_API_KEY is not set in .env");
-}
-
-if (!process.env.LANGSMITH_PROJECT) {
-  throw new Error("LANGSMITH_PROJECT is not set in .env");
-}
-
 const app = express();
 const port = Number(process.env.PORT || 3001);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const clientDistPath = path.resolve(__dirname, "../client/dist");
+const allowedOrigins = new Set(
+  [process.env.CLIENT_ORIGIN, process.env.CORS_ORIGINS]
+    .flatMap((value) => (value ? value.split(",") : []))
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
 
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "12kb" }));
@@ -32,12 +30,15 @@ app.use(express.json({ limit: "12kb" }));
 app.use(
   cors({
     origin(origin, callback) {
-      // In production, replace this localhost allowlist with your deployed domain(s).
       if (!origin) {
         return callback(null, true);
       }
 
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.has(origin)) {
         return callback(null, true);
       }
 

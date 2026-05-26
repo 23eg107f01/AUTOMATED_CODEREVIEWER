@@ -1,8 +1,12 @@
 {
-  "name": "automated-code-reviewer",
+  "name": "AUTOMATED",
   "private": true,
   "type": "module",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/23eg107f01/AUTOMATED_CODEREVIEWER"
+  },
   "workspaces": [
     "client",
     "server"

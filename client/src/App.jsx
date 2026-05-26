@@ -28,12 +28,18 @@ const initialCode = `function greet(name) {
   return "Hello, " + name.trim();
 }`;
 
-async function postReview(code, language, focus) {
-  const requestTargets = ["/api/review"];
-
-  if (import.meta.env.DEV) {
-    requestTargets.push("http://localhost:3001/api/review");
+function getReviewApiBaseUrl() {
+  const configuredUrl = import.meta.env.VITE_REVIEW_API_BASE_URL;
+  if (typeof configuredUrl === "string" && configuredUrl.trim()) {
+    return configuredUrl.replace(/\/$/, "");
   }
+
+  return "";
+}
+
+async function postReview(code, language, focus) {
+  const apiBaseUrl = getReviewApiBaseUrl();
+  const requestTargets = apiBaseUrl ? [`${apiBaseUrl}/api/review`] : ["/api/review"];
 
   let lastError = null;
 
@@ -118,7 +124,8 @@ export default function App() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error || "Review request failed.");
+        const detail = data.details ? ` ${data.details}` : "";
+        throw new Error(`${data.error || "Review request failed."}${detail}`.trim());
       }
 
       setReview(data);

@@ -1,8 +1,12 @@
 {
-  "name": "client",
+  "name": "AUTOMATED-client",
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/23eg107f01/AUTOMATED_CODEREVIEWER"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
