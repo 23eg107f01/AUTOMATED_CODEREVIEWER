@@ -1,8 +1,8 @@
 export default function Disclaimer() {
   return (
     <section className="disclaimer">
-      <strong>Warning</strong>
-      <p>⚠️ Do not paste secrets, API keys, passwords, or proprietary code. This app sends code to Groq's external API.</p>
+      <span className="shield-icon" aria-hidden="true">◇</span>
+      <p><strong>Keep sensitive code out.</strong> Do not paste passwords, API keys, secrets, or private code. Your snippet is sent to Groq for analysis.</p>
     </section>
   );
 }

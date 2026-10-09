@@ -26,6 +26,7 @@ const FOCUS_TO_AGENTS = {
   performance: ["performance"],
   bugs: ["bugs"],
   style: ["style"],
+  readability: ["style"],
   "best practices": ["style"],
   "code quality": ["bugs", "style"],
 };
@@ -44,6 +45,7 @@ const ReviewState = Annotation.Root({
   merged: Annotation(),
   retryCount: Annotation({ reducer: (_, b) => b, default: () => 0 }),
   retryPlan: Annotation(),
+  failures: Annotation(concat),
   trace: Annotation(concat),
   report: Annotation(),
 });
@@ -62,8 +64,10 @@ function parseJSON(text) {
 
 const norm = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 const isSerious = (f) => f.severity === "critical" || f.severity === "high";
-const fmt = (f) =>
-  `${f.title}${f.line ? ` (line ${f.line})` : ""}: ${f.detail}${f.fix ? ` Fix: ${f.fix}` : ""}`;
+const describe = (f) =>
+  `${f.detail}${f.line ? ` (line ${f.line})` : ""}${f.fix ? ` Fix: ${f.fix}` : ""}`.trim();
+const toIssue = (f) => ({ title: f.title, description: describe(f) });
+const toCritical = (f) => ({ title: f.title, description: describe(f), severity: f.severity });
 
 /**
  * llm: async ({ system, user }) => string   (see llm.js for the Groq version)
@@ -105,7 +109,7 @@ export function buildReviewGraph({ llm }) {
       };
     } catch (err) {
       // one agent failing must not crash the whole review
-      return { trace: [`${agent} agent (attempt ${attempt}): failed - ${err.message}`] };
+      return { failures: [agent], trace: [`${agent} agent (attempt ${attempt}): failed - ${err.message}`] };
     }
   };
 
@@ -176,6 +180,10 @@ export function buildReviewGraph({ llm }) {
 
   // 5. Report: build the final review (score is calculated by a fixed rule, not by the AI)
   const report = async (state) => {
+    // if every agent failed (for example the API is down), do not return a fake "perfect" review
+    if (state.failures.length >= state.selectedAgents.length && state.rawFindings.length === 0) {
+      throw new Error("All review agents failed. Please try again.");
+    }
     const rejected = new Set(state.rejectedIds);
     const final = state.merged.filter((f) => !rejected.has(f.id));
     const score = Math.max(0, 100 - final.reduce((sum, f) => sum + PENALTY[f.severity], 0));
@@ -184,12 +192,13 @@ export function buildReviewGraph({ llm }) {
     return {
       report: {
         overallScore: score,
-        criticalIssues: serious.map(fmt),
-        codeQuality: rest.filter((f) => f.agent === "bugs" || f.agent === "security").map(fmt),
-        performanceSuggestions: rest.filter((f) => f.agent === "performance").map(fmt),
-        bestPractices: rest.filter((f) => f.agent === "style").map(fmt),
+        criticalIssues: serious.map(toCritical),
+        codeQuality: rest.filter((f) => f.agent === "bugs" || f.agent === "security").map(toIssue),
+        performanceSuggestions: rest.filter((f) => f.agent === "performance").map(toIssue),
+        bestPractices: rest.filter((f) => f.agent === "style").map(toIssue),
         positiveHighlights: [...new Set(state.positives.map((p) => p.trim()).filter(Boolean))].slice(0, 5),
         agentsRun: state.selectedAgents,
+        failedAgents: [...new Set(state.failures)],
         workflowTrace: [...state.trace, `report: score ${score}`],
       },
     };

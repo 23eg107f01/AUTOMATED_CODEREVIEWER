@@ -100,6 +100,7 @@ export default function App() {
   const [review, setReview] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const codeLength = code.length;
   const overLimit = codeLength > maxCodeChars;
@@ -142,7 +143,13 @@ export default function App() {
     }
 
     const markdown = reviewToMarkdown(review, language, focus);
-    await navigator.clipboard.writeText(markdown);
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError("Review could not be copied. Please try again.");
+    }
   }
 
   function handleExport() {
@@ -162,34 +169,34 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
-
       <main className="app-frame">
-        <header className="hero-card">
-          <div className="hero-copy">
-            <p className="eyebrow">AI code review workspace</p>
-            <h1>Review code with structured feedback in seconds.</h1>
-            <p className="hero-text">
-              Paste a snippet, pick a language, choose a review focus, and get a concise review covering
-              bugs, security, readability, performance, and what is already working well.
-            </p>
-          </div>
-          <div className="hero-stats">
-            <div className="stat-card">
-              <span>Code limit</span>
-              <strong>4000 chars</strong>
-            </div>
-            <div className="stat-card">
-              <span>Model</span>
-              <strong>llama-3.3-70b-versatile</strong>
-            </div>
-            <div className="stat-card">
-              <span>Output</span>
-              <strong>Structured JSON</strong>
-            </div>
+        <header className="topbar">
+          <a className="brand" href="/" aria-label="AI Code Review home">
+            <span className="brand-mark" aria-hidden="true">⌘</span>
+            <span>CodeReview<span className="brand-accent">AI</span></span>
+          </a>
+          <div className="topbar-meta">
+            <span className="status-dot" aria-hidden="true" />
+            <span>Private workspace</span>
           </div>
         </header>
+
+        <section className="intro">
+          <div>
+            <p className="eyebrow">AI code review</p>
+            <h1>AI Code Reviewer</h1>
+            <p className="hero-text">
+              Find bugs, security issues and improvements before they reach production.
+            </p>
+          </div>
+          <div className="workflow" aria-label="Review workflow">
+            <div className="workflow-step"><span>01</span><strong>Paste code</strong></div>
+            <div className="workflow-line" aria-hidden="true" />
+            <div className="workflow-step"><span>02</span><strong>Choose focus</strong></div>
+            <div className="workflow-line" aria-hidden="true" />
+            <div className="workflow-step"><span>03</span><strong>Get insights</strong></div>
+          </div>
+        </section>
 
         <Disclaimer />
 
@@ -210,7 +217,6 @@ export default function App() {
               overLimit={overLimit}
               loading={loading}
             />
-            {error ? <div className="inline-error">{error}</div> : null}
           </div>
 
           <div className="surface panel-right">
@@ -219,6 +225,9 @@ export default function App() {
               loading={loading}
               onCopy={handleCopy}
               onExport={handleExport}
+              error={error}
+              onRetry={handleReview}
+              copied={copied}
               language={language}
               focus={focus}
             />

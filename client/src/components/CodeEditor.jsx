@@ -30,8 +30,17 @@ export default function CodeEditor({
   overLimit,
   loading
 }) {
+  const progress = Math.min((codeLength / maxCodeChars) * 100, 100);
+
   return (
     <div className="editor-stack">
+      <div className="card-heading">
+        <div>
+          <h2>Your code</h2>
+          <p>Paste the code you want the AI to review.</p>
+        </div>
+      </div>
+
       <div className="toolbar-row">
         <div className="select-block">
           <label htmlFor="language">Language</label>
@@ -55,14 +64,11 @@ export default function CodeEditor({
           </select>
         </div>
 
-        <div className="count-pill" aria-live="polite">
-          {codeLength} / {maxCodeChars}
-        </div>
       </div>
 
       <div className="editor-card">
         <Editor
-          height="520px"
+          height="min(520px, 52vh)"
           language={monacoLanguages[language] || "javascript"}
           value={code}
           theme="vs-dark"
@@ -81,13 +87,19 @@ export default function CodeEditor({
       </div>
 
       <div className="editor-footer">
-        <p className={overLimit ? "helper-text warning" : "helper-text"}>
-          {overLimit
-            ? "Code exceeds the 4000 character limit. Trim the snippet before reviewing."
-            : "Monaco Editor is text-only. No file uploads are supported."}
-        </p>
+        <div className="counter-wrap">
+          <div className="counter-row">
+            <span className={overLimit ? "helper-text warning" : "helper-text"} aria-live="polite">
+              {codeLength.toLocaleString()} / {maxCodeChars.toLocaleString()} characters
+            </span>
+            <span className="counter-label">No uploads</span>
+          </div>
+          <div className={`progress-track${overLimit ? " is-over" : ""}`} aria-hidden="true">
+            <span style={{ width: `${progress}%` }} />
+          </div>
+        </div>
         <button className="primary-button" type="button" onClick={onReview} disabled={loading || overLimit}>
-          {loading ? "Reviewing..." : "Generate Review"}
+          {loading ? <><span className="spinner" aria-hidden="true" /> Reviewing code...</> : <><span aria-hidden="true">✦</span> Review code</>}
         </button>
       </div>
     </div>

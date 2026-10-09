@@ -36,8 +36,10 @@ console.log(r1.workflowTrace.join("\n"));
 console.log(JSON.stringify({ ...r1, workflowTrace: undefined }, null, 2));
 assert.equal(r1.agentsRun.length, 4);
 assert.ok(r1.workflowTrace.some((t) => t.includes("attempt 1")), "security agent should be re-run");
-assert.ok(!r1.criticalIssues.some((t) => t.includes("Hard-coded secret")), "wrong finding must be removed");
-assert.equal(r1.criticalIssues.filter((t) => t.includes("SQL injection")).length, 1, "no duplicates");
+assert.ok(!r1.criticalIssues.some((i) => i.title === "Hard-coded secret"), "wrong finding must be removed");
+assert.equal(r1.criticalIssues.filter((i) => i.title === "SQL injection").length, 1, "no duplicates");
+assert.deepEqual(Object.keys(r1.criticalIssues[0]).sort(), ["description", "severity", "title"], "issue objects like the existing API");
+assert.deepEqual(Object.keys(r1.performanceSuggestions[0]).sort(), ["description", "title"]);
 assert.equal(r1.overallScore, 100 - 12 - 12 - 6 - 2);
 for (const k of ["overallScore","criticalIssues","codeQuality","performanceSuggestions","bestPractices","positiveHighlights"]) assert.ok(k in r1, k);
 
@@ -49,6 +51,16 @@ assert.equal(r2.performanceSuggestions.length, 0);
 // Test 3: focus picks only one agent
 const r3 = await runReview({ code: CODE, language: "JavaScript", focus: "Security" }, { llm: mockLLM() });
 assert.deepEqual(r3.agentsRun, ["security"]);
+
+// Test 4: the "Readability" focus from your frontend maps to the style agent
+const r4 = await runReview({ code: CODE, language: "JavaScript", focus: "Readability" }, { llm: mockLLM() });
+assert.deepEqual(r4.agentsRun, ["style"]);
+
+// Test 5: if every agent fails, throw (no fake "perfect score")
+await assert.rejects(
+  runReview({ code: CODE, language: "JavaScript", focus: "All" }, { llm: async () => { throw new Error("API down"); } }),
+  /All review agents failed/
+);
 
 // Diagram straight from the real graph
 console.log("\n" + (await buildReviewGraph({ llm: mockLLM() }).getGraphAsync()).drawMermaid());
